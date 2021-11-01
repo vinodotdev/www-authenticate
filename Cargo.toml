@@ -9,8 +9,9 @@ documentation = "http://docs.rs/www-authenticate"
 repository = "https://github.com/KeenS/www-authenticate"
 keywords = ["http", "hyper", "hyperium", "authentication"]
 categories = ["web-programming::http-client", "web-programming::http-server"]
+edition = "2021"
 
 [dependencies]
-hyperx = { version = "1.3", features = ["headers"] }
-unicase = "1.0"
-url = "1.5"
+hyperx = { version = "1.4", features = ["headers"] }
+unicase = "2.6"
+url = "2.2"

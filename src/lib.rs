@@ -101,14 +101,14 @@ impl WwwAuthenticate {
     /// find challenges and convert them into `C` if found.
     pub fn get<C: Challenge>(&self) -> Option<Vec<C>> {
         self.0
-            .get(&UniCase(CowStr(Cow::Borrowed(C::challenge_name()))))
+            .get(&UniCase::new(CowStr(Cow::Borrowed(C::challenge_name()))))
             .map(|m| m.iter().map(Clone::clone).flat_map(C::from_raw).collect())
     }
 
     /// find challenges and return it if found
     pub fn get_raw(&self, name: &str) -> Option<&[RawChallenge]> {
         self.0
-            .get(&UniCase(CowStr(Cow::Borrowed(unsafe {
+            .get(&UniCase::new(CowStr(Cow::Borrowed(unsafe {
                 mem::transmute::<&str, &'static str>(name)
             }))))
             .map(AsRef::as_ref)
@@ -118,7 +118,7 @@ impl WwwAuthenticate {
     pub fn set<C: Challenge>(&mut self, c: C) -> bool {
         self.0
             .insert(
-                UniCase(CowStr(Cow::Borrowed(C::challenge_name()))),
+                UniCase::new(CowStr(Cow::Borrowed(C::challenge_name()))),
                 vec![c.into_raw()],
             )
             .is_some()
@@ -127,14 +127,14 @@ impl WwwAuthenticate {
     /// set a challenge. This replaces existing challenges of the same name.
     pub fn set_raw(&mut self, scheme: String, raw: RawChallenge) -> bool {
         self.0
-            .insert(UniCase(CowStr(Cow::Owned(scheme))), vec![raw])
+            .insert(UniCase::new(CowStr(Cow::Owned(scheme))), vec![raw])
             .is_some()
     }
 
     /// append a challenge. This appends existing challenges of the same name.
     pub fn append<C: Challenge>(&mut self, c: C) {
         self.0
-            .entry(UniCase(CowStr(Cow::Borrowed(C::challenge_name()))))
+            .entry(UniCase::new(CowStr(Cow::Borrowed(C::challenge_name()))))
             .or_insert(Vec::new())
             .push(c.into_raw())
     }
@@ -142,7 +142,7 @@ impl WwwAuthenticate {
     /// append a challenge. This appends existing challenges of the same name.
     pub fn append_raw(&mut self, scheme: String, raw: RawChallenge) {
         self.0
-            .entry(UniCase(CowStr(Cow::Owned(scheme))))
+            .entry(UniCase::new(CowStr(Cow::Owned(scheme))))
             .or_insert(Vec::new())
             .push(raw)
     }
@@ -170,7 +170,10 @@ impl Header for WwwAuthenticate {
         "WWW-Authenticate"
     }
 
-    fn parse_header<'a, T>(raw: &'a T) -> hyperx::Result<Self> where T: RawLike<'a> {
+    fn parse_header<'a, T>(raw: &'a T) -> hyperx::Result<Self>
+    where
+        T: RawLike<'a>,
+    {
         let mut map = HashMap::new();
         for data in raw.iter() {
             let stream = parser::Stream::new(data.as_ref());
@@ -186,7 +189,7 @@ impl Header for WwwAuthenticate {
                     }
                 };
                 // TODO: treat the cases when a scheme is duplicated
-                map.entry(UniCase(CowStr(Cow::Owned(scheme))))
+                map.entry(UniCase::new(CowStr(Cow::Owned(scheme))))
                     .or_insert(Vec::new())
                     .push(challenge);
             }
@@ -281,46 +284,47 @@ mod raw {
         }
         pub fn get(&self, k: &str) -> Option<&String> {
             self.0
-                .get(&UniCase(CowStr(Cow::Borrowed(unsafe {
+                .get(&UniCase::new(CowStr(Cow::Borrowed(unsafe {
                     mem::transmute::<&str, &'static str>(k)
                 }))))
                 .map(|&(ref s, _)| s)
         }
         pub fn contains_key(&self, k: &str) -> bool {
-            self.0.contains_key(&UniCase(CowStr(Cow::Borrowed(unsafe {
-                mem::transmute::<&str, &'static str>(k)
-            }))))
+            self.0
+                .contains_key(&UniCase::new(CowStr(Cow::Borrowed(unsafe {
+                    mem::transmute::<&str, &'static str>(k)
+                }))))
         }
         pub fn get_mut(&mut self, k: &str) -> Option<&mut String> {
             self.0
-                .get_mut(&UniCase(CowStr(Cow::Borrowed(unsafe {
+                .get_mut(&UniCase::new(CowStr(Cow::Borrowed(unsafe {
                     mem::transmute::<&str, &'static str>(k)
                 }))))
                 .map(|&mut (ref mut s, _)| s)
         }
         pub fn insert(&mut self, k: String, v: String) -> Option<String> {
             self.0
-                .insert(UniCase(CowStr(Cow::Owned(k))), (v, Quote::IfNeed))
+                .insert(UniCase::new(CowStr(Cow::Owned(k))), (v, Quote::IfNeed))
                 .map(|(s, _)| s)
         }
         pub fn insert_quoting(&mut self, k: String, v: String) -> Option<String> {
             self.0
-                .insert(UniCase(CowStr(Cow::Owned(k))), (v, Quote::Always))
+                .insert(UniCase::new(CowStr(Cow::Owned(k))), (v, Quote::Always))
                 .map(|(s, _)| s)
         }
         pub fn insert_static(&mut self, k: &'static str, v: String) -> Option<String> {
             self.0
-                .insert(UniCase(CowStr(Cow::Borrowed(k))), (v, Quote::IfNeed))
+                .insert(UniCase::new(CowStr(Cow::Borrowed(k))), (v, Quote::IfNeed))
                 .map(|(s, _)| s)
         }
         pub fn insert_static_quoting(&mut self, k: &'static str, v: String) -> Option<String> {
             self.0
-                .insert(UniCase(CowStr(Cow::Borrowed(k))), (v, Quote::Always))
+                .insert(UniCase::new(CowStr(Cow::Borrowed(k))), (v, Quote::Always))
                 .map(|(s, _)| s)
         }
         pub fn remove(&mut self, k: &str) -> Option<String> {
             self.0
-                .remove(&UniCase(CowStr(Cow::Borrowed(unsafe {
+                .remove(&UniCase::new(CowStr(Cow::Borrowed(unsafe {
                     mem::transmute::<&str, &'static str>(k)
                 }))))
                 .map(|(s, _)| s)
@@ -349,13 +353,15 @@ mod raw {
             use self::RawChallenge::*;
             match *self {
                 Token68(ref token) => write!(f, "{}", token)?,
-                Fields(ref fields) => for (k, &(ref v, ref quote)) in fields.0.iter() {
-                    if need_quote(v, quote) {
-                        write!(f, "{}={:?}, ", k, v)?
-                    } else {
-                        write!(f, "{}={}, ", k, v)?
+                Fields(ref fields) => {
+                    for (k, &(ref v, ref quote)) in fields.0.iter() {
+                        if need_quote(v, quote) {
+                            write!(f, "{}={:?}, ", k, v)?
+                        } else {
+                            write!(f, "{}={}, ", k, v)?
+                        }
                     }
-                },
+                }
             }
             Ok(())
         }
@@ -389,7 +395,7 @@ mod basic {
                     // See https://tools.ietf.org/html/rfc7617#section-2.1
                     match map.remove("charset") {
                         Some(c) => {
-                            if UniCase(&c) == UniCase("UTF-8") {
+                            if UniCase::new(&c) == UniCase::new("UTF-8") {
                                 ()
                             } else {
                                 return None;
@@ -564,7 +570,7 @@ mod digest {
                     };
                     match charset {
                         Some(c) => {
-                            if UniCase(&c) == UniCase("UTF-8") {
+                            if UniCase::new(&c) == UniCase::new("UTF-8") {
                                 ()
                             } else {
                                 return None;
@@ -730,7 +736,8 @@ mod parser {
 
     pub fn is_token_char(c: u8) -> bool {
         // See https://tools.ietf.org/html/rfc7230#section-3.2.6
-        br#"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!#$%&'*+-.^_`|~"#.contains(&c)
+        br#"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!#$%&'*+-.^_`|~"#
+            .contains(&c)
     }
 
     pub fn is_obs_text(c: u8) -> bool {
@@ -815,7 +822,7 @@ mod parser {
             })
         }
 
-        pub fn try<F, T>(&self, f: F) -> Result<T>
+        pub fn r#try<F, T>(&self, f: F) -> Result<T>
         where
             F: FnOnce() -> Result<T>,
         {
@@ -923,12 +930,13 @@ mod parser {
         }
 
         pub fn field(&self) -> Result<(String, String)> {
-            self.try(|| self.kv_token().map(|(k, v)| (k.to_string(), v.to_string())))
+            self.r#try(|| self.kv_token().map(|(k, v)| (k.to_string(), v.to_string())))
                 .or_else(|_| self.kv_quoted().map(|(k, v)| (k.to_string(), v)))
         }
 
         pub fn raw_token68(&self) -> Result<RawChallenge> {
-            let ret = self.token68()
+            let ret = self
+                .token68()
                 .map(ToString::to_string)
                 .map(RawChallenge::Token68)?;
             self.skip_field_sep()?;
@@ -938,7 +946,7 @@ mod parser {
         pub fn raw_fields(&self) -> Result<RawChallenge> {
             let mut map = ChallengeFields::new();
             loop {
-                match self.try(|| self.field()) {
+                match self.r#try(|| self.field()) {
                     Err(_) => return Ok(RawChallenge::Fields(map)),
                     Ok((k, v)) => {
                         if self.skip_field_sep().is_ok() {
@@ -960,7 +968,8 @@ mod parser {
         pub fn challenge(&self) -> Result<(String, RawChallenge)> {
             let scheme = self.next_token()?;
             self.take_while1(is_ws)?;
-            let challenge = self.try(|| self.raw_token68())
+            let challenge = self
+                .r#try(|| self.raw_token68())
                 .or_else(|_| self.raw_fields())?;
             Ok((scheme.to_string(), challenge))
         }
@@ -1164,6 +1173,4 @@ mod tests {
             userhash: None,
         }));
     }
-
-
 }
